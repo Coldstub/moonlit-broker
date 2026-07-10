@@ -19,7 +19,7 @@ Hunt mobs, collect currency, return to the village, trade with the Moonlit Broke
 - **Bounty System** — Glowing contract drops, milestone progress (25/50/75/100%), actionbar + chat feedback.
 - **4-Tier Currency Chain** — Silver Notes, Trade Scrolls, Bounty Contracts, Mysterious Coins. Each has one clear job.
 - **Tiered Trading** — Fixed Top trades + random refreshable Shelf + rare Spark surprises.
-- **Multiplayer Friendly** — One broker per dimension; farewell mechanic lets players release the slot cleanly.
+- **Multiplayer Friendly** — One active Broker slot is shared server-wide; the farewell mechanic lets players release it cleanly.
 
 ---
 
@@ -63,7 +63,7 @@ After you've met him once, he settles into a regular visit rhythm.
 
 Rain increases his appearance chance — atmosphere bonus, not a hard requirement.
 
-One Broker per dimension at a time. If one is active somewhere, another won't spawn until the slot is released.
+Only one Broker can be active server-wide at a time. Natural spawning and summoning operate in the Overworld; another won't appear until the slot is released.
 
 Summoning Ritual
 Once you have a Merchant Mark, you can summon the Broker:
@@ -135,7 +135,7 @@ Turn the contract in at the Broker for rewards (scrolls/gear/coin rolls).
 First bounty completion guarantees 1 Mysterious Coin — so the economy can start even with bad luck.
 
 👥 Multiplayer
-One Broker serves the whole server per dimension — this is by design.
+One active Broker serves the whole server — this is by design.
 
 Farewell mechanic — release the active slot cleanly:
 
@@ -162,7 +162,7 @@ It’s unowned or dormant. Find the Broker and use Reclaim to bind it to yoursel
 The Broker replaces it once for free after unlock. After that, buy a replacement through trading. Your progress is not lost.
 
 “No Broker spawned / my summon did nothing.”
-A Broker may already be active in your dimension. Only one exists at a time. Find him and use the farewell mechanic, or wait for the slot to clear, then summon again.
+A Broker may already be active elsewhere in the Overworld. Only one exists server-wide at a time. Find him and use the farewell mechanic, or wait for the slot to clear, then summon again.
 
 “Can I get Mysterious Coins from trading?”
 No. Coins come from structure chests and bounty rewards only.
@@ -234,7 +234,7 @@ MIT License — see LICENSE for details.
 
 分层交易结构 — 固定 Top 交易 + 可刷新 Shelf 货架 + 稀有 Spark 惊喜位。
 
-多人友好 — 每个维度同一时间仅一个掮客；送别机制可“干净释放名额”。
+多人友好 — 全服共享一个活跃掮客名额；送别机制可“干净释放名额”。
 
 🔄 主循环
 text
@@ -276,7 +276,7 @@ Mysterious Coin（神秘硬币）	结构箱 / 悬赏奖励	高阶交易、太刀
 
 下雨会增加出现概率（气氛加成），不是硬门槛。
 
-同一维度同一时间仅一个掮客：如果已有活跃掮客，就不会再刷新的。
+全服同一时间仅允许一个活跃掮客。自然生成与玩家召唤均在主世界运行；名额释放前不会出现另一个掮客。
 
 召唤仪式
 拿到 商人印记（Merchant Mark） 后，你可以召唤掮客：
@@ -348,7 +348,7 @@ Hidden / Secret 页禁止刷新：尝试刷新时 不消耗卷轴，并会给出
 第一次完成悬赏必定获得 1 枚神秘硬币，避免“运气差导致体系开不起来”。
 
 👥 多人联机
-同一维度同一时间仅一个掮客，这是设计选择。
+全服由同一个活跃掮客服务，这是设计选择。
 
 送别机制：干净释放掮客名额（便于换节奏/换变体）
 
@@ -375,7 +375,7 @@ Hidden / Secret 页禁止刷新：尝试刷新时 不消耗卷轴，并会给出
 解锁后可免费补发一次；再次丢失需要通过交易购买。你的进度不会丢。
 
 “没有掮客出现/召唤没反应。”
-可能该维度已有活跃掮客。同一时间只允许一个。找到他送别，或等待名额释放后再召唤。
+主世界中可能已有活跃掮客。全服同一时间只允许一个；找到他送别，或等待名额释放后再召唤。
 
 “能不能通过交易刷神秘硬币？”
 不能。硬币仅来自结构箱与悬赏奖励。
