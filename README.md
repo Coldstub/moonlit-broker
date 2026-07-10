@@ -104,11 +104,11 @@ Legendary Katanas cannot be purchased twice. Ownership is tracked. If you alread
 The five katanas are contract-bound:
 
 Name	—
-月之光芒	Moon's Radiance
-残念之刃	Blade of Lingering Regret
-暗月之蚀	Dark Moon Eclipse
-窃念之黯	Shadow of Stolen Thoughts
-先觉之谕	Oracle's Foresight
+月之光芒	Moonlight
+心殇之刃	Trauma
+暗月之蚀	Eclipse Blade
+窃念之黯	Oblivion Edge
+先觉之谕	Nmap
 
 Why might my katana not work?
 
