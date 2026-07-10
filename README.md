@@ -91,7 +91,7 @@ Spend a Trade Scroll to randomize the Shelf trades on normal pages.
 
 Hidden / Secret pages cannot be refreshed. If you try, nothing is consumed and you’ll receive a clear notification.
 
-Refreshing does not affect fixed Top trades or the current Spark item.
+On a normal-page refresh, fixed Top trades remain stable; the current Spark item and Shelf offers are re-rolled.
 
 Economy limits
 Each trade has a use limit (maxUses). Once exhausted, that slot is locked for this visit.
@@ -304,7 +304,7 @@ Mysterious Coin（神秘硬币）	结构箱 / 悬赏奖励	高阶交易、太刀
 
 Hidden / Secret 页禁止刷新：尝试刷新时 不消耗卷轴，并会给出明确提示。
 
-刷新不会影响固定 Top 位与当前 Spark 位。
+刷新普通页时，固定 Top 交易保持不变；当前 Spark 位与 Shelf 货架会重新随机。
 
 经济阀门
 每条交易都有使用次数上限（maxUses），用完即锁（本次来访）。
