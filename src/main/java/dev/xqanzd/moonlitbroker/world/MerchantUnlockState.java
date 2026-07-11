@@ -1,5 +1,7 @@
 package dev.xqanzd.moonlitbroker.world;
 
+import dev.xqanzd.moonlitbroker.trade.KatanaIdUtil;
+import dev.xqanzd.moonlitbroker.trade.TradeConfig;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
@@ -32,8 +34,15 @@ public class MerchantUnlockState extends PersistentState {
 
     private static final String DATA_NAME = "xqanzd_moonlit_broker_merchant_unlock";
     private static final String NBT_PLAYERS = "Players";
+    private static final String NBT_KATANA_MASTERY = "KatanaMastery";
+    private static final int MAX_KATANA_MASTERY_ENTRIES_PER_PLAYER = 5;
 
     private final Map<UUID, Progress> progressByPlayer = new HashMap<>();
+    /**
+     * Variant-independent mastery. Key = player UUID -> canonical katana ID -> progress.
+     * Stage is intentionally derived from progress and is never persisted.
+     */
+    private final Map<UUID, Map<String, Integer>> katanaMasteryByPlayer = new HashMap<>();
 
     public MerchantUnlockState() {
     }
@@ -162,6 +171,74 @@ public class MerchantUnlockState extends PersistentState {
         return progress;
     }
 
+    /**
+     * Returns variant-independent mastery progress for a canonical katana type.
+     * Unknown or malformed katana IDs are rejected as zero progress.
+     */
+    public int getKatanaMasteryProgress(UUID playerUuid, String katanaType) {
+        if (playerUuid == null) {
+            return 0;
+        }
+        String canonicalKatanaType = canonicalKatanaMasteryType(katanaType);
+        if (canonicalKatanaType.isEmpty()) {
+            return 0;
+        }
+        Map<String, Integer> masteryByType = katanaMasteryByPlayer.get(playerUuid);
+        if (masteryByType == null) {
+            return 0;
+        }
+        Integer progress = masteryByType.get(canonicalKatanaType);
+        return progress == null ? 0 : clampKatanaMasteryProgress(progress);
+    }
+
+    /**
+     * Stage is a pure function of persisted progress so threshold tuning recalculates it safely.
+     */
+    public int getKatanaMasteryStage(UUID playerUuid, String katanaType) {
+        return katanaMasteryStageForProgress(getKatanaMasteryProgress(playerUuid, katanaType));
+    }
+
+    /**
+     * Advances variant-independent mastery for one canonical katana type.
+     * Invalid identities or non-positive advances do not mutate persistent state.
+     */
+    public MasteryAdvanceResult addKatanaMasteryProgress(UUID playerUuid, String katanaType, int amount) {
+        if (playerUuid == null || amount <= 0) {
+            return rejectedMasteryAdvance();
+        }
+        String canonicalKatanaType = canonicalKatanaMasteryType(katanaType);
+        if (canonicalKatanaType.isEmpty()) {
+            return rejectedMasteryAdvance();
+        }
+
+        Map<String, Integer> masteryByType = katanaMasteryByPlayer.get(playerUuid);
+        int previousProgress = masteryByType == null
+            ? 0
+            : clampKatanaMasteryProgress(masteryByType.getOrDefault(canonicalKatanaType, 0));
+        int previousStage = katanaMasteryStageForProgress(previousProgress);
+        int currentProgress = (int) Math.min(
+            (long) TradeConfig.MASTERY_STAGE_3_THRESHOLD,
+            (long) previousProgress + amount);
+        int currentStage = katanaMasteryStageForProgress(currentProgress);
+
+        if (currentProgress == previousProgress) {
+            return new MasteryAdvanceResult(true, previousProgress, currentProgress, previousStage, currentStage);
+        }
+
+        if (masteryByType == null) {
+            masteryByType = new HashMap<>();
+            katanaMasteryByPlayer.put(playerUuid, masteryByType);
+        }
+        if (!masteryByType.containsKey(canonicalKatanaType)
+                && masteryByType.size() >= MAX_KATANA_MASTERY_ENTRIES_PER_PLAYER) {
+            return rejectedMasteryAdvance();
+        }
+
+        masteryByType.put(canonicalKatanaType, currentProgress);
+        markDirty();
+        return new MasteryAdvanceResult(true, previousProgress, currentProgress, previousStage, currentStage);
+    }
+
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
         NbtCompound playersNbt = new NbtCompound();
@@ -169,6 +246,7 @@ public class MerchantUnlockState extends PersistentState {
             playersNbt.put(entry.getKey().toString(), entry.getValue().toNbt(entry.getKey()));
         }
         nbt.put(NBT_PLAYERS, playersNbt);
+        writeKatanaMasteryNbt(nbt);
         return nbt;
     }
 
@@ -186,7 +264,128 @@ public class MerchantUnlockState extends PersistentState {
                 }
             }
         }
+        readKatanaMasteryNbt(state, nbt);
         return state;
+    }
+
+    private static String canonicalKatanaMasteryType(String katanaType) {
+        return KatanaIdUtil.canonicalizeKatanaId(katanaType);
+    }
+
+    private static int clampKatanaMasteryProgress(int progress) {
+        return Math.max(0, Math.min(TradeConfig.MASTERY_STAGE_3_THRESHOLD, progress));
+    }
+
+    private static int katanaMasteryStageForProgress(int progress) {
+        int clampedProgress = clampKatanaMasteryProgress(progress);
+        if (clampedProgress >= TradeConfig.MASTERY_STAGE_3_THRESHOLD) {
+            return 3;
+        }
+        if (clampedProgress >= TradeConfig.MASTERY_STAGE_2_THRESHOLD) {
+            return 2;
+        }
+        if (clampedProgress >= TradeConfig.MASTERY_STAGE_1_THRESHOLD) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private static MasteryAdvanceResult rejectedMasteryAdvance() {
+        return new MasteryAdvanceResult(false, 0, 0, 0, 0);
+    }
+
+    private void writeKatanaMasteryNbt(NbtCompound nbt) {
+        NbtCompound masteryPlayersNbt = new NbtCompound();
+        for (Map.Entry<UUID, Map<String, Integer>> playerEntry : katanaMasteryByPlayer.entrySet()) {
+            UUID playerUuid = playerEntry.getKey();
+            Map<String, Integer> masteryByType = playerEntry.getValue();
+            if (playerUuid == null || masteryByType == null || masteryByType.isEmpty()) {
+                continue;
+            }
+
+            NbtCompound masteryByTypeNbt = new NbtCompound();
+            int writtenEntries = 0;
+            for (Map.Entry<String, Integer> masteryEntry : masteryByType.entrySet()) {
+                if (writtenEntries >= MAX_KATANA_MASTERY_ENTRIES_PER_PLAYER) {
+                    break;
+                }
+                String canonicalKatanaType = canonicalKatanaMasteryType(masteryEntry.getKey());
+                Integer rawProgress = masteryEntry.getValue();
+                if (canonicalKatanaType.isEmpty() || rawProgress == null || rawProgress <= 0) {
+                    continue;
+                }
+                if (!masteryByTypeNbt.contains(canonicalKatanaType)) {
+                    writtenEntries++;
+                }
+                masteryByTypeNbt.putInt(canonicalKatanaType, clampKatanaMasteryProgress(rawProgress));
+            }
+            if (!masteryByTypeNbt.getKeys().isEmpty()) {
+                masteryPlayersNbt.put(playerUuid.toString(), masteryByTypeNbt);
+            }
+        }
+        if (!masteryPlayersNbt.getKeys().isEmpty()) {
+            nbt.put(NBT_KATANA_MASTERY, masteryPlayersNbt);
+        }
+    }
+
+    private static void readKatanaMasteryNbt(MerchantUnlockState state, NbtCompound nbt) {
+        if (!nbt.contains(NBT_KATANA_MASTERY, NbtElement.COMPOUND_TYPE)) {
+            return;
+        }
+
+        NbtCompound masteryPlayersNbt = nbt.getCompound(NBT_KATANA_MASTERY);
+        for (String rawPlayerUuid : masteryPlayersNbt.getKeys()) {
+            if (!masteryPlayersNbt.contains(rawPlayerUuid, NbtElement.COMPOUND_TYPE)) {
+                continue;
+            }
+
+            UUID playerUuid;
+            try {
+                playerUuid = UUID.fromString(rawPlayerUuid);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("[MerchantUnlockState] Invalid mastery player UUID: {}", rawPlayerUuid);
+                continue;
+            }
+
+            NbtCompound masteryByTypeNbt = masteryPlayersNbt.getCompound(rawPlayerUuid);
+            Map<String, Integer> masteryByType = new HashMap<>();
+            for (String rawKatanaType : masteryByTypeNbt.getKeys()) {
+                if (!masteryByTypeNbt.contains(rawKatanaType, NbtElement.INT_TYPE)) {
+                    continue;
+                }
+                String canonicalKatanaType = canonicalKatanaMasteryType(rawKatanaType);
+                int rawProgress = masteryByTypeNbt.getInt(rawKatanaType);
+                if (canonicalKatanaType.isEmpty() || rawProgress <= 0) {
+                    continue;
+                }
+
+                int clampedProgress = clampKatanaMasteryProgress(rawProgress);
+                Integer existingProgress = masteryByType.get(canonicalKatanaType);
+                if (existingProgress != null) {
+                    masteryByType.put(canonicalKatanaType, Math.max(existingProgress, clampedProgress));
+                } else if (masteryByType.size() < MAX_KATANA_MASTERY_ENTRIES_PER_PLAYER) {
+                    masteryByType.put(canonicalKatanaType, clampedProgress);
+                }
+            }
+            if (!masteryByType.isEmpty()) {
+                state.katanaMasteryByPlayer.put(playerUuid, masteryByType);
+            }
+        }
+    }
+
+    public record MasteryAdvanceResult(
+            boolean accepted,
+            int previousProgress,
+            int currentProgress,
+            int previousStage,
+            int currentStage) {
+        public boolean progressed() {
+            return accepted && currentProgress > previousProgress;
+        }
+
+        public boolean stageChanged() {
+            return accepted && currentStage != previousStage;
+        }
     }
 
     public static class Progress {

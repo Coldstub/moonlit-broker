@@ -421,4 +421,49 @@ public final class TradeConfig {
         if (item == null) return false;
         return item.getDefaultStack().getRarity() == Rarity.EPIC;
     }
+
+    // ========== FEATURE_CYCLE_1: Katana Mastery v0 ==========
+    /** Cumulative confirmed eligible kills required for mastery stage 1. */
+    public static final int MASTERY_STAGE_1_THRESHOLD = 30;
+    /** Cumulative confirmed eligible kills required for mastery stage 2. */
+    public static final int MASTERY_STAGE_2_THRESHOLD = 120;
+    /** Cumulative confirmed eligible kills required for mastery stage 3. */
+    public static final int MASTERY_STAGE_3_THRESHOLD = 300;
+
+    /** Baseline damage multiplier for mastery stage 0. */
+    public static final float MASTERY_STAGE_0_DAMAGE_MULTIPLIER = 1.0f;
+    /** Damage multiplier for mastery stage 1. */
+    public static final float MASTERY_STAGE_1_DAMAGE_MULTIPLIER = 1.025f;
+    /** Damage multiplier for mastery stage 2. */
+    public static final float MASTERY_STAGE_2_DAMAGE_MULTIPLIER = 1.05f;
+    /** Damage multiplier for mastery stage 3. */
+    public static final float MASTERY_STAGE_3_DAMAGE_MULTIPLIER = 1.075f;
+
+    /** Attack-to-death attribution validity window. */
+    public static final int MASTERY_ATTRIBUTION_WINDOW_TICKS = 100;
+    /** Bounded in-memory attribution buffer capacity. */
+    public static final int MASTERY_ATTRIBUTION_BUFFER_CAP = 128;
+
+    static {
+        validateMasteryConstants();
+    }
+
+    private static void validateMasteryConstants() {
+        if (MASTERY_STAGE_1_THRESHOLD <= 0
+                || MASTERY_STAGE_1_THRESHOLD >= MASTERY_STAGE_2_THRESHOLD
+                || MASTERY_STAGE_2_THRESHOLD >= MASTERY_STAGE_3_THRESHOLD) {
+            throw new IllegalStateException("Mastery stage thresholds must be strictly increasing and positive");
+        }
+        if (MASTERY_STAGE_0_DAMAGE_MULTIPLIER > MASTERY_STAGE_1_DAMAGE_MULTIPLIER
+                || MASTERY_STAGE_1_DAMAGE_MULTIPLIER > MASTERY_STAGE_2_DAMAGE_MULTIPLIER
+                || MASTERY_STAGE_2_DAMAGE_MULTIPLIER > MASTERY_STAGE_3_DAMAGE_MULTIPLIER) {
+            throw new IllegalStateException("Mastery damage multipliers must be monotonic");
+        }
+        if (MASTERY_ATTRIBUTION_WINDOW_TICKS <= 0) {
+            throw new IllegalStateException("Mastery attribution window must be positive");
+        }
+        if (MASTERY_ATTRIBUTION_BUFFER_CAP <= 0) {
+            throw new IllegalStateException("Mastery attribution buffer cap must be positive");
+        }
+    }
 }
