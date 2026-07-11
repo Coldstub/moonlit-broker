@@ -35,10 +35,15 @@ public class OblivionHandler {
             if (world.isClient()) return ActionResult.PASS;
             if (!(entity instanceof LivingEntity target)) return ActionResult.PASS;
             if (!(player.getMainHandStack().isOf(KatanaItems.OBLIVION_EDGE))) return ActionResult.PASS;
-            if (world instanceof ServerWorld sw
-                    && !KatanaContractUtil.gateOrReturn(sw, player, player.getMainHandStack())) {
+            if (!(world instanceof ServerWorld serverWorld)) {
                 return ActionResult.PASS;
             }
+            if (!KatanaContractUtil.gateOrReturn(serverWorld, player, player.getMainHandStack())) {
+                return ActionResult.PASS;
+            }
+
+            float masteryMultiplier = KatanaMasteryHooks.recordEligibleAttack(
+                    serverWorld, player, target, player.getMainHandStack());
 
             long currentTick = world.getTime();
             boolean isBoss = isBoss(target);
@@ -61,7 +66,7 @@ public class OblivionHandler {
             }
 
             // === Layer 4: 护甲穿透（基础 25%，ReadWrite 提升） ===
-            applyArmorPenetration(player, target, isBoss, hasReadWrite);
+            applyArmorPenetration(player, target, isBoss, hasReadWrite, masteryMultiplier);
 
             // === Layer 3: 倒因噬果（条件判定） ===
             if (hasReadWrite && shouldTriggerCausality(player, target, playerHpBeforeHit, playerHpRatio, isBoss, currentTick)) {
@@ -224,7 +229,12 @@ public class OblivionHandler {
 
     // ========== Layer 4: 护甲穿透 ==========
 
-    private static void applyArmorPenetration(PlayerEntity player, LivingEntity target, boolean isBoss, boolean hasReadWrite) {
+    private static void applyArmorPenetration(
+            PlayerEntity player,
+            LivingEntity target,
+            boolean isBoss,
+            boolean hasReadWrite,
+            float masteryMultiplier) {
         float baseDamage = 5.0f;  // OblivionEdgeItem 基础伤害
         float armor = target.getArmor();
         float armorReduction = Math.min(armor * 0.04f, 0.8f);
@@ -236,6 +246,7 @@ public class OblivionHandler {
                 : OblivionConfig.READWRITE_ARMOR_PENETRATION;
         }
         float compensationDamage = baseDamage * armorReduction * penetration;
+        compensationDamage *= masteryMultiplier;
 
         if (compensationDamage > 0.3f) {
             target.damage(player.getDamageSources().magic(), compensationDamage);

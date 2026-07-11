@@ -12,6 +12,7 @@ import net.minecraft.entity.effect.StatusEffectInstance;
 import net.minecraft.entity.effect.StatusEffects;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.server.network.ServerPlayerEntity;
+import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
 import net.minecraft.util.ActionResult;
 import net.minecraft.util.math.BlockPos;
@@ -49,10 +50,15 @@ public class MoonTraceHandler {
             if (world.isClient()) return ActionResult.PASS;
             if (!(entity instanceof LivingEntity target)) return ActionResult.PASS;
             if (!(player.getMainHandStack().isOf(KatanaItems.MOON_GLOW_KATANA))) return ActionResult.PASS;
-            if (world instanceof net.minecraft.server.world.ServerWorld sw
-                    && !KatanaContractUtil.gateOrReturn(sw, player, player.getMainHandStack())) {
+            if (!(world instanceof ServerWorld serverWorld)) {
                 return ActionResult.PASS;
             }
+            if (!KatanaContractUtil.gateOrReturn(serverWorld, player, player.getMainHandStack())) {
+                return ActionResult.PASS;
+            }
+
+            float masteryMultiplier = KatanaMasteryHooks.recordEligibleAttack(
+                    serverWorld, player, target, player.getMainHandStack());
 
             if (MoonTraceConfig.DEBUG) {
                 LOGGER.info("[MoonTrace] Attack: {} -> {}",
@@ -62,7 +68,7 @@ public class MoonTraceHandler {
             // 1. 尝试消耗已有月痕
             var consumed = MoonTraceManager.getAndConsume(target, player);
             if (consumed.isPresent()) {
-                applyConsumeBonus(player, target, consumed.get().markType());
+                applyConsumeBonus(player, target, consumed.get().markType(), masteryMultiplier);
                 return ActionResult.PASS;
             }
 
@@ -75,7 +81,7 @@ public class MoonTraceHandler {
             boolean moonlightPathSatisfied = isMoonlightPathSatisfied(world, targetPos);
 
             if (moonlightPathSatisfied && shouldTriggerMoonlight(world, player, target, targetPos)) {
-                applyInstantEffects(player, target);
+                applyInstantEffects(player, target, masteryMultiplier);
                 MoonTraceManager.applyMoonlightMark(target, player, MoonTraceConfig.MARK_DURATION);
 
                 // 设置 moonlight mark 冷却
@@ -92,7 +98,7 @@ public class MoonTraceHandler {
                         MoonTraceConfig.SKY_LIGHT_THRESHOLD);
                 }
             } else if (!moonlightPathSatisfied && shouldTriggerLight(world, player, target, totalLight)) {
-                applyInstantEffects(player, target);
+                applyInstantEffects(player, target, masteryMultiplier);
                 MoonTraceManager.applyLightMark(target, player, MoonTraceConfig.MARK_DURATION);
 
                 // 设置 light mark 冷却
@@ -381,11 +387,15 @@ public class MoonTraceHandler {
 
     // ==================== 效果应用 ====================
 
-    private static void applyInstantEffects(PlayerEntity player, LivingEntity target) {
+    private static void applyInstantEffects(
+            PlayerEntity player,
+            LivingEntity target,
+            float masteryMultiplier) {
         // 即时伤害
         float damage = randomRange(MoonTraceConfig.INSTANT_DAMAGE_MIN,
                                    MoonTraceConfig.INSTANT_DAMAGE_MAX,
                                    player.getRandom().nextFloat());
+        damage *= masteryMultiplier;
         target.damage(player.getDamageSources().playerAttack(player), damage);
 
         // 减速
@@ -425,7 +435,11 @@ public class MoonTraceHandler {
      * 消耗月痕时的增伤效果
      * 包含：护甲穿透物理伤害 + 魔法补偿（BASE + min(maxHP * PERCENT, CAP)）
      */
-    private static void applyConsumeBonus(PlayerEntity player, LivingEntity target, MoonTraceManager.MarkType markType) {
+    private static void applyConsumeBonus(
+            PlayerEntity player,
+            LivingEntity target,
+            MoonTraceManager.MarkType markType,
+            float masteryMultiplier) {
         boolean boss = isBoss(target);
         float maxHp = target.getMaxHealth();
         float damageMultiplier = markType == MoonTraceManager.MarkType.LIGHT_MARK
@@ -445,6 +459,7 @@ public class MoonTraceHandler {
         float pen = boss ? MoonTraceConfig.ARMOR_PEN_BOSS : MoonTraceConfig.ARMOR_PEN_NORMAL;
         float effectiveArmor = armor * (1.0f - pen);
         float finalBonus = calculateDamageAfterArmor(rawBonus, effectiveArmor, toughness);
+        finalBonus *= masteryMultiplier;
 
         target.damage(player.getDamageSources().playerAttack(player), finalBonus);
 
@@ -456,6 +471,7 @@ public class MoonTraceHandler {
 
         float percentMagic = Math.min(maxHp * percentHp, percentCap);
         float totalMagic = (baseMagic + percentMagic) * damageMultiplier;
+        totalMagic *= masteryMultiplier;
 
         // 加入延迟队列，下一 tick 结算
         pendingMagicDamage.add(new PendingMagicDamage(

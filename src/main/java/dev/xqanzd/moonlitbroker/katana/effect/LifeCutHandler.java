@@ -9,6 +9,7 @@ import net.minecraft.entity.attribute.EntityAttributes;
 import net.minecraft.entity.boss.WitherEntity;
 import net.minecraft.entity.boss.dragon.EnderDragonEntity;
 import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.sound.SoundCategory;
@@ -257,10 +258,10 @@ public class LifeCutHandler {
                 continue;
             }
 
-            // 目标已死亡，跳过
-            if (!target.isAlive()) {
+            // 目标已死亡、移除或不在当前世界，跳过
+            if (!target.isAlive() || target.isRemoved() || target.getWorld() != world) {
                 if (LifeCutConfig.DEBUG) {
-                    LOGGER.info("[LifeCut] Apply: target={} amount={} ok=false (dead)",
+                    LOGGER.info("[LifeCut] Apply: target={} amount={} ok=false (invalid target)",
                         target.getName().getString(),
                         String.format("%.1f", pending.damage()));
                 }
@@ -270,11 +271,16 @@ public class LifeCutHandler {
             // 查找玩家（用于 DamageSource）
             var playerEntity = world.getPlayerByUuid(pending.playerUuid());
 
-            // 使用 playerAttack 伤害源，更接近原版攻击
-            if (playerEntity != null) {
-                target.damage(playerEntity.getDamageSources().playerAttack(playerEntity), pending.damage());
+            // Re-read the execution-time stack so the attribution identity is not stale.
+            if (playerEntity != null && playerEntity.isAlive() && playerEntity.getWorld() == world) {
+                ItemStack currentStack = playerEntity.getMainHandStack();
+                float masteryMultiplier = KatanaMasteryHooks.recordEligibleAttack(
+                        world, playerEntity, target, currentStack);
+                target.damage(
+                        playerEntity.getDamageSources().playerAttack(playerEntity),
+                        pending.damage() * masteryMultiplier);
             } else {
-                // 玩家离线，使用通用攻击伤害源
+                // Invalid execution-time attacker cannot receive mastery attribution.
                 target.damage(world.getDamageSources().generic(), pending.damage());
             }
 
