@@ -1,6 +1,7 @@
 package dev.xqanzd.moonlitbroker.client;
 
 import dev.xqanzd.moonlitbroker.client.screen.MoonlitMerchantScreen;
+import dev.xqanzd.moonlitbroker.katana.client.MasteryClientNetworking;
 import dev.xqanzd.moonlitbroker.registry.ModEntities;
 import dev.xqanzd.moonlitbroker.registry.ModTooltips;
 import dev.xqanzd.moonlitbroker.client.render.MysteriousMerchantRenderer;
@@ -14,6 +15,7 @@ import net.minecraft.client.gui.screen.ingame.HandledScreens;
 public class MymodtestClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
+        MasteryClientNetworking.register();
         ModTooltips.init();
         ArmorItemColorProviders.register();
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> ArmorItemColorProviders.register());
