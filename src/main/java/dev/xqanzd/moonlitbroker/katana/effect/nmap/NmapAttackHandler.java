@@ -1,5 +1,6 @@
 package dev.xqanzd.moonlitbroker.katana.effect.nmap;
 
+import dev.xqanzd.moonlitbroker.katana.effect.KatanaMasteryHooks;
 import dev.xqanzd.moonlitbroker.katana.item.KatanaItems;
 import dev.xqanzd.moonlitbroker.katana.sound.ModSounds;
 import dev.xqanzd.moonlitbroker.util.KatanaContractUtil;
@@ -20,11 +21,15 @@ public class NmapAttackHandler {
             if (world.isClient()) return ActionResult.PASS;
             if (!(entity instanceof LivingEntity target)) return ActionResult.PASS;
             if (!(player.getMainHandStack().isOf(KatanaItems.NMAP_KATANA))) return ActionResult.PASS;
-            if (world instanceof ServerWorld sw
-                    && !KatanaContractUtil.gateOrReturn(sw, player, player.getMainHandStack())) {
+            if (!(world instanceof ServerWorld serverWorld)) {
+                return ActionResult.PASS;
+            }
+            if (!KatanaContractUtil.gateOrReturn(serverWorld, player, player.getMainHandStack())) {
                 return ActionResult.PASS;
             }
 
+            float masteryMultiplier = KatanaMasteryHooks.recordEligibleAttack(
+                    serverWorld, player, target, player.getMainHandStack());
             long currentTick = world.getTime();
 
             // Port Enumeration -> Penetration
@@ -33,12 +38,12 @@ public class NmapAttackHandler {
                 NmapManager.getCurrentPenetration(player, currentTick)
             );
             if (penetration > 0) {
-                applyPenetration(player, target, penetration);
+                applyPenetration(player, target, penetration, masteryMultiplier);
             }
 
             // Vulnerability Scan -> Crit
             if (shouldVulnCrit(player, target, currentTick)) {
-                applyVulnCrit(player, target, currentTick);
+                applyVulnCrit(player, target, currentTick, masteryMultiplier);
             }
 
             return ActionResult.PASS;
@@ -47,11 +52,16 @@ public class NmapAttackHandler {
         LOGGER.info("[Nmap] Attack handler registered");
     }
 
-    private static void applyPenetration(PlayerEntity player, LivingEntity target, float penetration) {
+    private static void applyPenetration(
+            PlayerEntity player,
+            LivingEntity target,
+            float penetration,
+            float masteryMultiplier) {
         float baseDamage = 5.0f;
         float armor = target.getArmor();
         float armorReduction = Math.min(armor * 0.04f, 0.8f);
         float bonusDamage = baseDamage * armorReduction * penetration;
+        bonusDamage *= masteryMultiplier;
 
         if (bonusDamage > 0.3f) {
             target.damage(player.getDamageSources().magic(), bonusDamage);
@@ -69,9 +79,14 @@ public class NmapAttackHandler {
         return NmapManager.canVulnCrit(player, currentTick);
     }
 
-    private static void applyVulnCrit(PlayerEntity player, LivingEntity target, long currentTick) {
+    private static void applyVulnCrit(
+            PlayerEntity player,
+            LivingEntity target,
+            long currentTick,
+            float masteryMultiplier) {
         float baseDamage = 5.0f;
         float critBonus = baseDamage * (NmapConfig.VULN_CRIT_MULTIPLIER - 1.0f);
+        critBonus *= masteryMultiplier;
 
         target.damage(player.getDamageSources().playerAttack(player), critBonus);
         NmapManager.setVulnCritCooldown(player, currentTick);
