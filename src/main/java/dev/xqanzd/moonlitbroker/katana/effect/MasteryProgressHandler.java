@@ -9,6 +9,9 @@ import net.minecraft.entity.LivingEntity;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.network.ServerPlayerEntity;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 
 /**
  * Server-side Katana Mastery settlement.
@@ -48,6 +51,14 @@ public final class MasteryProgressHandler {
                 .getPlayer(acceptedAttribution.attackerUuid());
         if (player != null) {
             sendProgress(player, acceptedAttribution.canonicalKatanaId(), result.currentProgress());
+            if (result.currentStage() > result.previousStage()) {
+                player.sendMessage(
+                        Text.translatable(
+                                "actionbar.xqanzd_moonlit_broker.mastery.stage_up",
+                                result.currentStage()).formatted(Formatting.GOLD),
+                        true);
+                player.playSound(SoundEvents.ENTITY_PLAYER_LEVELUP, 0.7f, 1.0f);
+            }
         }
     }
 
