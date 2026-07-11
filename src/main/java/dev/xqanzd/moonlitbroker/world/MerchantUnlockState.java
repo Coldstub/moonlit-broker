@@ -192,6 +192,39 @@ public class MerchantUnlockState extends PersistentState {
     }
 
     /**
+     * Returns an immutable snapshot of positive mastery progress for one player.
+     */
+    public Map<String, Integer> getKatanaMasterySnapshot(UUID playerUuid) {
+        if (playerUuid == null) {
+            return Map.of();
+        }
+        Map<String, Integer> masteryByType = katanaMasteryByPlayer.get(playerUuid);
+        if (masteryByType == null || masteryByType.isEmpty()) {
+            return Map.of();
+        }
+
+        Map<String, Integer> snapshot = new HashMap<>();
+        for (Map.Entry<String, Integer> entry : masteryByType.entrySet()) {
+            if (snapshot.size() >= MAX_KATANA_MASTERY_ENTRIES_PER_PLAYER) {
+                break;
+            }
+            String canonicalKatanaType = canonicalKatanaMasteryType(entry.getKey());
+            Integer rawProgress = entry.getValue();
+            if (canonicalKatanaType.isEmpty()
+                    || !canonicalKatanaType.equals(entry.getKey())
+                    || rawProgress == null
+                    || rawProgress <= 0) {
+                continue;
+            }
+            int progress = clampKatanaMasteryProgress(rawProgress);
+            if (progress > 0) {
+                snapshot.put(canonicalKatanaType, progress);
+            }
+        }
+        return Map.copyOf(snapshot);
+    }
+
+    /**
      * Stage is a pure function of persisted progress so threshold tuning recalculates it safely.
      */
     public int getKatanaMasteryStage(UUID playerUuid, String katanaType) {
