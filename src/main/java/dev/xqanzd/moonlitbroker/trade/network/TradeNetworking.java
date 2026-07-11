@@ -20,6 +20,12 @@ public class TradeNetworking {
             TradeActionC2SPacket.ID,
             TradeActionC2SPacket.CODEC
         );
+
+        // 注册 S2C 包类型
+        PayloadTypeRegistry.playS2C().register(
+            MasteryProgressS2CPacket.ID,
+            MasteryProgressS2CPacket.CODEC
+        );
         
         // 注册 C2S 包处理器
         ServerPlayNetworking.registerGlobalReceiver(
@@ -34,7 +40,7 @@ public class TradeNetworking {
      * 注册客户端网络包
      */
     public static void registerClient() {
-        // 客户端只需要注册包类型用于发送
-        // PayloadTypeRegistry 在服务端注册后客户端自动可用
+        // Client-only receivers are registered from the client entrypoint.
+        // Payload types are registered through the common initializer on both physical sides.
     }
 }
