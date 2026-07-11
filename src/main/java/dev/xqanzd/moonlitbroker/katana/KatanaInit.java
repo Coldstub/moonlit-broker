@@ -3,6 +3,7 @@ package dev.xqanzd.moonlitbroker.katana;
 import dev.xqanzd.moonlitbroker.katana.effect.EclipseHandler;
 import dev.xqanzd.moonlitbroker.katana.effect.EclipseManager;
 import dev.xqanzd.moonlitbroker.katana.effect.LifeCutHandler;
+import dev.xqanzd.moonlitbroker.katana.effect.MasteryProgressHandler;
 import dev.xqanzd.moonlitbroker.katana.effect.MoonTraceHandler;
 import dev.xqanzd.moonlitbroker.katana.effect.MoonTraceManager;
 import dev.xqanzd.moonlitbroker.katana.effect.OblivionHandler;
@@ -36,6 +37,7 @@ public class KatanaInit {
         OblivionHandler.register();
         NmapScanHandler.register();
         NmapAttackHandler.register();
+        MasteryProgressHandler.register();
 
         // 注册 tick 事件
         ServerTickEvents.END_SERVER_TICK.register(server -> {
