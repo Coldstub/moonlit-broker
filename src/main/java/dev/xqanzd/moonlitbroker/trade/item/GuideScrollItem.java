@@ -30,10 +30,6 @@ public class GuideScrollItem extends WrittenBookItem {
     }
 
     public static void ensureGuideContent(ItemStack stack) {
-        if (stack.get(DataComponentTypes.WRITTEN_BOOK_CONTENT) != null) {
-            return;
-        }
-
         List<RawFilteredPair<Text>> pages = List.of(
                 RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.1")),
                 RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.2")),
@@ -44,7 +40,15 @@ public class GuideScrollItem extends WrittenBookItem {
                 RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.7")),
                 RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.8")),
                 RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.9")),
-                RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.10"))
+                RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.10")),
+                RawFilteredPair.of(Text.translatable(
+                        "guide.xqanzd_moonlit_broker.page.11",
+                        Text.translatable("item.xqanzd_moonlit_broker.moon_glow_katana"),
+                        Text.translatable("item.xqanzd_moonlit_broker.regret_blade"),
+                        Text.translatable("item.xqanzd_moonlit_broker.eclipse_blade"),
+                        Text.translatable("item.xqanzd_moonlit_broker.oblivion_edge"),
+                        Text.translatable("item.xqanzd_moonlit_broker.nmap_katana")
+                ))
         );
 
         WrittenBookContentComponent content = new WrittenBookContentComponent(
