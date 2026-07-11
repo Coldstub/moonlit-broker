@@ -198,12 +198,7 @@ public final class KatanaMasteryHooks {
     }
 
     private static float multiplierForStage(int stage) {
-        return switch (stage) {
-            case 1 -> TradeConfig.MASTERY_STAGE_1_DAMAGE_MULTIPLIER;
-            case 2 -> TradeConfig.MASTERY_STAGE_2_DAMAGE_MULTIPLIER;
-            case 3 -> TradeConfig.MASTERY_STAGE_3_DAMAGE_MULTIPLIER;
-            default -> TradeConfig.MASTERY_STAGE_0_DAMAGE_MULTIPLIER;
-        };
+        return TradeConfig.masteryMultiplierForStage(stage);
     }
 
     private record AttributionKey(UUID attackerUuid, UUID victimUuid) {

@@ -444,6 +444,45 @@ public final class TradeConfig {
     /** Bounded in-memory attribution buffer capacity. */
     public static final int MASTERY_ATTRIBUTION_BUFFER_CAP = 128;
 
+    /** Common-side clamp for persisted, synchronized, and tooltip mastery progress. */
+    public static int clampKatanaMasteryProgress(int progress) {
+        return Math.max(0, Math.min(MASTERY_STAGE_3_THRESHOLD, progress));
+    }
+
+    /** Shared stage derivation; clients and server must use this single threshold owner. */
+    public static int masteryStageForProgress(int progress) {
+        int clampedProgress = clampKatanaMasteryProgress(progress);
+        if (clampedProgress >= MASTERY_STAGE_3_THRESHOLD) {
+            return 3;
+        }
+        if (clampedProgress >= MASTERY_STAGE_2_THRESHOLD) {
+            return 2;
+        }
+        if (clampedProgress >= MASTERY_STAGE_1_THRESHOLD) {
+            return 1;
+        }
+        return 0;
+    }
+
+    /** Shared damage multiplier derivation for a mastery stage. */
+    public static float masteryMultiplierForStage(int stage) {
+        return switch (stage) {
+            case 1 -> MASTERY_STAGE_1_DAMAGE_MULTIPLIER;
+            case 2 -> MASTERY_STAGE_2_DAMAGE_MULTIPLIER;
+            case 3 -> MASTERY_STAGE_3_DAMAGE_MULTIPLIER;
+            default -> MASTERY_STAGE_0_DAMAGE_MULTIPLIER;
+        };
+    }
+
+    /** Target progress for the current stage's next transition; stage 3 returns its cap. */
+    public static int masteryProgressTargetForStage(int stage) {
+        return switch (stage) {
+            case 0 -> MASTERY_STAGE_1_THRESHOLD;
+            case 1 -> MASTERY_STAGE_2_THRESHOLD;
+            default -> MASTERY_STAGE_3_THRESHOLD;
+        };
+    }
+
     static {
         validateMasteryConstants();
     }

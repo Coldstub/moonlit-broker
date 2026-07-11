@@ -273,21 +273,11 @@ public class MerchantUnlockState extends PersistentState {
     }
 
     private static int clampKatanaMasteryProgress(int progress) {
-        return Math.max(0, Math.min(TradeConfig.MASTERY_STAGE_3_THRESHOLD, progress));
+        return TradeConfig.clampKatanaMasteryProgress(progress);
     }
 
     private static int katanaMasteryStageForProgress(int progress) {
-        int clampedProgress = clampKatanaMasteryProgress(progress);
-        if (clampedProgress >= TradeConfig.MASTERY_STAGE_3_THRESHOLD) {
-            return 3;
-        }
-        if (clampedProgress >= TradeConfig.MASTERY_STAGE_2_THRESHOLD) {
-            return 2;
-        }
-        if (clampedProgress >= TradeConfig.MASTERY_STAGE_1_THRESHOLD) {
-            return 1;
-        }
-        return 0;
+        return TradeConfig.masteryStageForProgress(progress);
     }
 
     private static MasteryAdvanceResult rejectedMasteryAdvance() {
