@@ -483,8 +483,47 @@ public final class TradeConfig {
         };
     }
 
+    // ========== FEATURE_CYCLE_2: Broker Trust & Supply Tiers v0 ==========
+    /** Broker Trust delta for a completed common-tier contract. */
+    public static final int BROKER_TRUST_DELTA_COMMON = 1;
+    /** Broker Trust delta for a completed rare-tier contract. */
+    public static final int BROKER_TRUST_DELTA_RARE = 2;
+    /** Broker Trust delta for a completed elite-tier contract. */
+    public static final int BROKER_TRUST_DELTA_ELITE = 3;
+
+    /** Minimum persisted Trust progress for rank 1. */
+    public static final int BROKER_TRUST_RANK_1_THRESHOLD = 3;
+    /** Minimum persisted Trust progress for rank 2. */
+    public static final int BROKER_TRUST_RANK_2_THRESHOLD = 8;
+    /** Minimum persisted Trust progress for rank 3. */
+    public static final int BROKER_TRUST_RANK_3_THRESHOLD = 15;
+
+    /** Persisted Broker Trust progress cap; rank is derived and never persisted. */
+    public static final int BROKER_TRUST_PROGRESS_CAP = 15;
+
+    /** Common-side clamp for persisted Broker Trust progress. */
+    public static int clampBrokerTrustProgress(int progress) {
+        return Math.max(0, Math.min(BROKER_TRUST_PROGRESS_CAP, progress));
+    }
+
+    /** Shared rank derivation; rank is a pure function of persisted progress. */
+    public static int brokerTrustRankForProgress(int progress) {
+        int clampedProgress = clampBrokerTrustProgress(progress);
+        if (clampedProgress >= BROKER_TRUST_RANK_3_THRESHOLD) {
+            return 3;
+        }
+        if (clampedProgress >= BROKER_TRUST_RANK_2_THRESHOLD) {
+            return 2;
+        }
+        if (clampedProgress >= BROKER_TRUST_RANK_1_THRESHOLD) {
+            return 1;
+        }
+        return 0;
+    }
+
     static {
         validateMasteryConstants();
+        validateBrokerTrustConstants();
     }
 
     private static void validateMasteryConstants() {
@@ -503,6 +542,22 @@ public final class TradeConfig {
         }
         if (MASTERY_ATTRIBUTION_BUFFER_CAP <= 0) {
             throw new IllegalStateException("Mastery attribution buffer cap must be positive");
+        }
+    }
+
+    private static void validateBrokerTrustConstants() {
+        if (BROKER_TRUST_RANK_1_THRESHOLD <= 0
+                || BROKER_TRUST_RANK_1_THRESHOLD >= BROKER_TRUST_RANK_2_THRESHOLD
+                || BROKER_TRUST_RANK_2_THRESHOLD >= BROKER_TRUST_RANK_3_THRESHOLD) {
+            throw new IllegalStateException("Broker trust rank thresholds must be strictly increasing and positive");
+        }
+        if (BROKER_TRUST_PROGRESS_CAP < BROKER_TRUST_RANK_3_THRESHOLD) {
+            throw new IllegalStateException("Broker trust progress cap must reach the rank 3 threshold");
+        }
+        if (BROKER_TRUST_DELTA_COMMON <= 0
+                || BROKER_TRUST_DELTA_COMMON > BROKER_TRUST_DELTA_RARE
+                || BROKER_TRUST_DELTA_RARE > BROKER_TRUST_DELTA_ELITE) {
+            throw new IllegalStateException("Broker trust tier deltas must be positive and monotonic");
         }
     }
 }

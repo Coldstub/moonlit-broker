@@ -15,6 +15,7 @@ import net.minecraft.nbt.NbtElement;
 import net.minecraft.nbt.NbtList;
 import net.minecraft.nbt.NbtString;
 
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -23,6 +24,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.UUID;
 
 /**
@@ -35,7 +37,10 @@ public class MerchantUnlockState extends PersistentState {
     private static final String DATA_NAME = "xqanzd_moonlit_broker_merchant_unlock";
     private static final String NBT_PLAYERS = "Players";
     private static final String NBT_KATANA_MASTERY = "KatanaMastery";
+    private static final String NBT_BROKER_TRUST = "BrokerTrust";
     private static final int MAX_KATANA_MASTERY_ENTRIES_PER_PLAYER = 5;
+    // Permanent progression: reject-new-at-cap, never evict existing entries.
+    private static final int MAX_BROKER_TRUST_PLAYERS = 4096;
 
     private final Map<UUID, Progress> progressByPlayer = new HashMap<>();
     /**
@@ -43,6 +48,11 @@ public class MerchantUnlockState extends PersistentState {
      * Stage is intentionally derived from progress and is never persisted.
      */
     private final Map<UUID, Map<String, Integer>> katanaMasteryByPlayer = new HashMap<>();
+    /**
+     * Variant/item-independent Broker Trust. Key = player UUID -> persisted progress.
+     * Rank is intentionally derived from progress and is never persisted.
+     */
+    private final Map<UUID, Integer> brokerTrustByPlayer = new LinkedHashMap<>();
 
     public MerchantUnlockState() {
     }
@@ -272,6 +282,74 @@ public class MerchantUnlockState extends PersistentState {
         return new MasteryAdvanceResult(true, previousProgress, currentProgress, previousStage, currentStage);
     }
 
+    /**
+     * Returns variant/item-independent Broker Trust progress; missing entries are zero.
+     * Read path never creates a player entry.
+     */
+    public int getBrokerTrustProgress(UUID playerUuid) {
+        if (playerUuid == null) {
+            return 0;
+        }
+        Integer progress = brokerTrustByPlayer.get(playerUuid);
+        return progress == null ? 0 : TradeConfig.clampBrokerTrustProgress(progress);
+    }
+
+    /**
+     * Rank is a pure function of persisted progress so threshold tuning recalculates it safely.
+     */
+    public int getBrokerTrustRank(UUID playerUuid) {
+        return TradeConfig.brokerTrustRankForProgress(getBrokerTrustProgress(playerUuid));
+    }
+
+    /**
+     * Non-mutating pre-settlement admission gate. Formal settlement routes must call this
+     * before any reward, Coin roll, pending write or consume. Existing players remain
+     * admitted at cap; new players are rejected once the map is full.
+     */
+    public boolean canAcceptBrokerTrustPlayer(UUID playerUuid) {
+        if (playerUuid == null) {
+            return false;
+        }
+        return brokerTrustByPlayer.containsKey(playerUuid)
+            || brokerTrustByPlayer.size() < MAX_BROKER_TRUST_PLAYERS;
+    }
+
+    /**
+     * Silent Broker Trust mutation: no message, no sound, no locale reference.
+     * Invalid callers or non-positive deltas do not mutate persistent state.
+     * A cap-full new player reaching this method bypassed the admission gate; the
+     * mutation is rejected as an invariant failure, not a normal settlement branch.
+     */
+    public BrokerTrustMutationResult addBrokerTrustProgress(
+            net.minecraft.server.network.ServerPlayerEntity player, int amount) {
+        if (player == null) {
+            return rejectedBrokerTrustMutation(amount, 0);
+        }
+        UUID playerUuid = player.getUuid();
+        int previousProgress = getBrokerTrustProgress(playerUuid);
+        if (amount <= 0) {
+            return rejectedBrokerTrustMutation(amount, previousProgress);
+        }
+        if (!canAcceptBrokerTrustPlayer(playerUuid)) {
+            LOGGER.warn("[MoonTrade] BROKER_TRUST_CAP_INVARIANT_FAILURE playerUuid={} cap={} requestedDelta={} action=reject",
+                playerUuid, MAX_BROKER_TRUST_PLAYERS, amount);
+            return rejectedBrokerTrustMutation(amount, previousProgress);
+        }
+
+        int currentProgress = (int) Math.min(
+            (long) TradeConfig.BROKER_TRUST_PROGRESS_CAP,
+            (long) previousProgress + amount);
+        int previousRank = TradeConfig.brokerTrustRankForProgress(previousProgress);
+        int currentRank = TradeConfig.brokerTrustRankForProgress(currentProgress);
+        int appliedDelta = currentProgress - previousProgress;
+        if (appliedDelta > 0) {
+            brokerTrustByPlayer.put(playerUuid, currentProgress);
+            markDirty();
+        }
+        return new BrokerTrustMutationResult(
+            true, amount, appliedDelta, previousProgress, currentProgress, previousRank, currentRank);
+    }
+
     @Override
     public NbtCompound writeNbt(NbtCompound nbt, RegistryWrapper.WrapperLookup registryLookup) {
         NbtCompound playersNbt = new NbtCompound();
@@ -280,6 +358,7 @@ public class MerchantUnlockState extends PersistentState {
         }
         nbt.put(NBT_PLAYERS, playersNbt);
         writeKatanaMasteryNbt(nbt);
+        writeBrokerTrustNbt(nbt);
         return nbt;
     }
 
@@ -298,6 +377,7 @@ public class MerchantUnlockState extends PersistentState {
             }
         }
         readKatanaMasteryNbt(state, nbt);
+        readBrokerTrustNbt(state, nbt);
         return state;
     }
 
@@ -396,6 +476,66 @@ public class MerchantUnlockState extends PersistentState {
         }
     }
 
+    private static BrokerTrustMutationResult rejectedBrokerTrustMutation(int requestedDelta, int progress) {
+        int rank = TradeConfig.brokerTrustRankForProgress(progress);
+        return new BrokerTrustMutationResult(false, requestedDelta, 0, progress, progress, rank, rank);
+    }
+
+    private void writeBrokerTrustNbt(NbtCompound nbt) {
+        NbtCompound brokerTrustNbt = new NbtCompound();
+        this.brokerTrustByPlayer.entrySet().stream()
+            .filter(entry -> entry.getKey() != null && entry.getValue() != null && entry.getValue() > 0)
+            .sorted(Map.Entry.comparingByKey(Comparator.comparing(UUID::toString)))
+            .limit(MAX_BROKER_TRUST_PLAYERS)
+            .forEach(entry -> brokerTrustNbt.putInt(
+                entry.getKey().toString(),
+                TradeConfig.clampBrokerTrustProgress(entry.getValue())));
+        if (!brokerTrustNbt.getKeys().isEmpty()) {
+            nbt.put(NBT_BROKER_TRUST, brokerTrustNbt);
+        }
+    }
+
+    private static void readBrokerTrustNbt(MerchantUnlockState state, NbtCompound nbt) {
+        if (!nbt.contains(NBT_BROKER_TRUST, NbtElement.COMPOUND_TYPE)) {
+            return;
+        }
+
+        NbtCompound brokerTrustNbt = nbt.getCompound(NBT_BROKER_TRUST);
+        // Filter malformed/type/negative first so invalid entries never consume cap slots,
+        // then admit in canonical UUID string lexical order for deterministic truncation.
+        Map<UUID, Integer> validByPlayer = new TreeMap<>(Comparator.comparing(UUID::toString));
+        for (String rawPlayerUuid : brokerTrustNbt.getKeys()) {
+            if (!brokerTrustNbt.contains(rawPlayerUuid, NbtElement.INT_TYPE)) {
+                continue;
+            }
+            int rawProgress = brokerTrustNbt.getInt(rawPlayerUuid);
+            if (rawProgress <= 0) {
+                continue;
+            }
+            UUID playerUuid;
+            try {
+                playerUuid = UUID.fromString(rawPlayerUuid);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("[MerchantUnlockState] Invalid broker trust player UUID: {}", rawPlayerUuid);
+                continue;
+            }
+            validByPlayer.merge(playerUuid, TradeConfig.clampBrokerTrustProgress(rawProgress), Math::max);
+        }
+
+        int truncated = 0;
+        for (Map.Entry<UUID, Integer> entry : validByPlayer.entrySet()) {
+            if (state.brokerTrustByPlayer.size() >= MAX_BROKER_TRUST_PLAYERS) {
+                truncated++;
+                continue;
+            }
+            state.brokerTrustByPlayer.put(entry.getKey(), entry.getValue());
+        }
+        if (truncated > 0) {
+            LOGGER.warn("[MoonTrade] BROKER_TRUST_MAP_CAP_TRUNCATE cap={} drop={} source=load",
+                MAX_BROKER_TRUST_PLAYERS, truncated);
+        }
+    }
+
     public record MasteryAdvanceResult(
             boolean accepted,
             int previousProgress,
@@ -408,6 +548,27 @@ public class MerchantUnlockState extends PersistentState {
 
         public boolean stageChanged() {
             return accepted && currentStage != previousStage;
+        }
+    }
+
+    public record BrokerTrustMutationResult(
+            boolean accepted,
+            int requestedDelta,
+            int appliedDelta,
+            int previousProgress,
+            int currentProgress,
+            int previousRank,
+            int currentRank) {
+        public boolean progressed() {
+            return accepted && appliedDelta > 0;
+        }
+
+        public boolean rankChanged() {
+            return accepted && currentRank != previousRank;
+        }
+
+        public boolean saturated() {
+            return accepted && appliedDelta == 0;
         }
     }
 
