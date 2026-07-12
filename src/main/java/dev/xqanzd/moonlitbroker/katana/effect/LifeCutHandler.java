@@ -51,10 +51,15 @@ public class LifeCutHandler {
             if (world.isClient()) return ActionResult.PASS;
             if (!(entity instanceof LivingEntity target)) return ActionResult.PASS;
             if (!(player.getMainHandStack().isOf(KatanaItems.REGRET_BLADE))) return ActionResult.PASS;
-            if (world instanceof ServerWorld sw
-                    && !KatanaContractUtil.gateOrReturn(sw, player, player.getMainHandStack())) {
+            if (!(world instanceof ServerWorld serverWorld)) {
                 return ActionResult.PASS;
             }
+            if (!KatanaContractUtil.gateOrReturn(serverWorld, player, player.getMainHandStack())) {
+                return ActionResult.PASS;
+            }
+
+            KatanaMasteryHooks.recordEligibleAttack(
+                    serverWorld, player, target, player.getMainHandStack());
 
             float currentHp = target.getHealth();
             float maxHp = target.getMaxHealth();
