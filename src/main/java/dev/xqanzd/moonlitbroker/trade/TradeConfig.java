@@ -2,10 +2,19 @@ package dev.xqanzd.moonlitbroker.trade;
 
 import dev.xqanzd.moonlitbroker.armor.item.ArmorItems;
 import dev.xqanzd.moonlitbroker.armor.transitional.TransitionalArmorItems;
+import dev.xqanzd.moonlitbroker.registry.ModItems;
 import dev.xqanzd.moonlitbroker.trade.item.BountyContractItem;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.component.type.PotionContentsComponent;
 import net.minecraft.item.Item;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.Items;
+import net.minecraft.potion.Potion;
+import net.minecraft.potion.Potions;
+import net.minecraft.registry.entry.RegistryEntry;
 import net.minecraft.util.Rarity;
+import net.minecraft.village.TradeOffer;
+import net.minecraft.village.TradedItem;
 
 import java.util.List;
 import java.util.Map;
@@ -537,6 +546,52 @@ public final class TradeConfig {
             return 1;
         }
         return 0;
+    }
+
+    // ========== FEATURE_CYCLE_2 C1-C: Broker Trust supply rows ==========
+    /** Immutable supply-row description; stacks/offers are fresh-created per build. */
+    public record BrokerTrustSupplyRow(
+            String id,
+            int page,
+            int minRank,
+            Item inputItem,
+            int inputCount,
+            RegistryEntry<Potion> potion,
+            int maxUses) {
+    }
+
+    private static volatile List<BrokerTrustSupplyRow> BROKER_TRUST_SUPPLY_ROWS_CACHE;
+
+    /**
+     * Frozen six-row Broker Trust supply table (plan §3). Rank eligibility is additive:
+     * a row is eligible when rank >= minRank, so higher ranks keep all lower-rank rows.
+     */
+    public static List<BrokerTrustSupplyRow> brokerTrustSupplyRows() {
+        if (BROKER_TRUST_SUPPLY_ROWS_CACHE == null) {
+            BROKER_TRUST_SUPPLY_ROWS_CACHE = List.of(
+                    new BrokerTrustSupplyRow("BT-P1-NIGHT", 1, 1, ModItems.SILVER_NOTE, 3, Potions.LONG_NIGHT_VISION, 4),
+                    new BrokerTrustSupplyRow("BT-P1-FIRE", 1, 1, ModItems.SILVER_NOTE, 4, Potions.LONG_FIRE_RESISTANCE, 3),
+                    new BrokerTrustSupplyRow("BT-P2-HEAL", 2, 2, ModItems.SILVER_NOTE, 6, Potions.STRONG_HEALING, 3),
+                    new BrokerTrustSupplyRow("BT-P2-WATER", 2, 2, ModItems.SILVER_NOTE, 6, Potions.LONG_WATER_BREATHING, 3),
+                    new BrokerTrustSupplyRow("BT-P3-STRENGTH", 3, 3, ModItems.MYSTERIOUS_COIN, 1, Potions.STRONG_STRENGTH, 4),
+                    new BrokerTrustSupplyRow("BT-P3-REGEN", 3, 3, ModItems.MYSTERIOUS_COIN, 1, Potions.STRONG_REGENERATION, 3));
+        }
+        return BROKER_TRUST_SUPPLY_ROWS_CACHE;
+    }
+
+    /**
+     * Fresh-creates the offer for one supply row: new buy TradedItem, new potion sell
+     * stack via PotionContentsComponent.createStack, new TradeOffer — never shared
+     * mutable objects. sell count=1, merchantXp=0, priceMultiplier=0.0, no discount.
+     */
+    public static TradeOffer createBrokerTrustSupplyOffer(BrokerTrustSupplyRow row) {
+        ItemStack sellStack = PotionContentsComponent.createStack(Items.POTION, row.potion());
+        return new TradeOffer(
+                new TradedItem(row.inputItem(), row.inputCount()),
+                sellStack,
+                row.maxUses(),
+                0,
+                0.0f);
     }
 
     static {

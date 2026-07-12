@@ -1842,6 +1842,7 @@ public class MysteriousMerchantEntity extends WanderingTraderEntity {
         shelfCandidates.add(new TradeOffer(new TradedItem(Items.IRON_INGOT, 3), new ItemStack(Items.COAL, 64), 8, 0, 0.05f));
         shelfCandidates.add(new TradeOffer(new TradedItem(Items.IRON_INGOT, 3), new ItemStack(Items.MOSSY_STONE_BRICKS, 64), 6, 0, 0.05f));
         shelfCandidates.add(new TradeOffer(new TradedItem(Items.IRON_INGOT, 3), new ItemStack(Items.POWERED_RAIL, 32), 6, 0, 0.05f));
+        addBrokerTrustSupplyCandidates(shelfCandidates, playerUuid, 1);
         injectVisibleSparkOffer(offers, pageStart, 1, refreshNonce, playerUuid, shelfCandidates);
         addShelfOffersToPage(offers, pageStart, shelfCandidates, 1, refreshNonce, playerUuid, PAGE_SHELF_COUNT);
 
@@ -1956,6 +1957,7 @@ public class MysteriousMerchantEntity extends WanderingTraderEntity {
                 Optional.of(new TradedItem(ModItems.SILVER_NOTE, 1)),
                 createEnchantedTool(Items.IRON_HOE, Enchantments.EFFICIENCY, 2, Enchantments.UNBREAKING, 1),
                 3, 0, 0.05f));
+        addBrokerTrustSupplyCandidates(shelfCandidates, playerUuid, 2);
         injectVisibleSparkOffer(offers, pageStart, 2, refreshNonce, playerUuid, shelfCandidates);
         addShelfOffersToPage(offers, pageStart, shelfCandidates, 2, refreshNonce, playerUuid, PAGE_SHELF_COUNT);
 
@@ -2067,6 +2069,7 @@ public class MysteriousMerchantEntity extends WanderingTraderEntity {
         TradeOfferList variantCandidates = new TradeOfferList();
         addVariantSpecialtyOffers(variantCandidates);
         shelfCandidates.addAll(variantCandidates);
+        addBrokerTrustSupplyCandidates(shelfCandidates, playerUuid, 3);
 
         injectVisibleSparkOffer(offers, pageStart, 3, refreshNonce, playerUuid, shelfCandidates);
         addShelfOffersToPage(offers, pageStart, shelfCandidates, 3, refreshNonce, playerUuid, PAGE_SHELF_COUNT);
@@ -2078,6 +2081,24 @@ public class MysteriousMerchantEntity extends WanderingTraderEntity {
             return;
         }
         list.add(offer);
+    }
+
+    /**
+     * FEATURE_CYCLE_2 C1-C: additive Broker Trust supply eligibility. Rank read is
+     * non-creating; each eligible row (rank >= minRank) joins the existing candidate
+     * pool exactly once with uniform weight — no slot guarantee, no discount, no seed
+     * or selection change.
+     */
+    private void addBrokerTrustSupplyCandidates(java.util.List<TradeOffer> shelfCandidates, UUID playerUuid, int pageIndex) {
+        if (!(this.getEntityWorld() instanceof ServerWorld serverWorld)) {
+            return;
+        }
+        int rank = MerchantUnlockState.getServerState(serverWorld).getBrokerTrustRank(playerUuid);
+        for (TradeConfig.BrokerTrustSupplyRow row : TradeConfig.brokerTrustSupplyRows()) {
+            if (row.page() == pageIndex && rank >= row.minRank()) {
+                shelfCandidates.add(TradeConfig.createBrokerTrustSupplyOffer(row));
+            }
+        }
     }
 
     private void moveFixedOverflowToShelf(TradeOfferList offers, int pageStart, java.util.List<TradeOffer> shelfCandidates) {
