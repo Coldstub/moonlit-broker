@@ -1524,14 +1524,23 @@ public class MysteriousMerchantEntity extends WanderingTraderEntity {
             return ActionResult.CONSUME;
         }
 
+        // 2.5) FEATURE_CYCLE_2 Trust admission gate：必须在任何 reward/consume 前拒绝；
+        // admission false 是 defer/reject，不构成 successful formal completion。
+        MerchantUnlockState unlockState = MerchantUnlockState.getServerState(serverPlayer.getServerWorld());
+        if (!unlockState.canAcceptBrokerTrustPlayer(serverPlayer.getUuid())) {
+            LOGGER.warn("[MoonTrade] action=BOUNTY_SUBMIT_REJECT reason=TRUST_ADMISSION_CAP side=S player={}",
+                    serverPlayer.getName().getString());
+            return ActionResult.CONSUME;
+        }
+
         // 3) 原子提交：先发奖励，成功后再消耗契约
         String target = BountyContractItem.getTarget(contractStack);
         int progress = BountyContractItem.getProgress(contractStack);
         int required = BountyContractItem.getRequired(contractStack);
+        // Resolve tier from contract NBT (normalizeTier handles legacy/unknown values)
+        String tier = BountyContractItem.normalizeTier(BountyContractItem.getTier(contractStack));
 
         try {
-            // Resolve tier from contract NBT (normalizeTier handles legacy/unknown values)
-            String tier = BountyContractItem.normalizeTier(BountyContractItem.getTier(contractStack));
             dev.xqanzd.moonlitbroker.trade.loot.BountyHandler.grantRewards(serverPlayer, required, tier);
             contractStack.decrement(1);
         } catch (Exception e) {
@@ -1543,6 +1552,15 @@ public class MysteriousMerchantEntity extends WanderingTraderEntity {
                     false
             );
             return ActionResult.CONSUME;
+        }
+
+        // FEATURE_CYCLE_2 post-consume silent Trust award：admission 已通过，
+        // non-accepted result 是 invariant failure，不是正常分支。
+        MerchantUnlockState.BrokerTrustMutationResult trustResult =
+                unlockState.addBrokerTrustProgress(serverPlayer, TradeConfig.brokerTrustDeltaForTier(tier));
+        if (!trustResult.accepted()) {
+            LOGGER.error("[MoonTrade] action=BOUNTY_TRUST_INVARIANT_FAILURE side=S player={} tier={} requestedDelta={}",
+                    serverPlayer.getName().getString(), tier, trustResult.requestedDelta());
         }
 
         LOGGER.info("[MoonTrade] action=BOUNTY_SUBMIT_ACCEPT side=S player={} target={} progress={}/{} rewardScroll=1 rewardSilver={}",

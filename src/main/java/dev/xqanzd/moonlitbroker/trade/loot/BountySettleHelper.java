@@ -38,6 +38,7 @@ public final class BountySettleHelper {
     /** pendingCoinReward 软上限 */
     private static final int PENDING_COIN_CAP = 64;
     private static boolean pendingCoinCapWarned = false;
+    private static boolean trustAdmissionDeferWarned = false;
     /** Poison pill 引导提示限频 key */
     private static final String COOLDOWN_POISON_HINT = "bounty_settle_poison";
     /** 限频冷却 (6000 ticks = 5 分钟) */
@@ -102,6 +103,21 @@ public final class BountySettleHelper {
             return false;
         }
 
+        // FEATURE_CYCLE_2 Trust admission gate：必须在任何 fixed insert/Coin roll/
+        // pending write/consume 前 defer；admission false 不构成 successful completion。
+        MerchantUnlockState unlockState = MerchantUnlockState.getServerState(world);
+        if (!unlockState.canAcceptBrokerTrustPlayer(player.getUuid())) {
+            if (!trustAdmissionDeferWarned) {
+                trustAdmissionDeferWarned = true;
+                LOGGER.warn("[BountySettle] TRUST_ADMISSION_DEFER player={} action=defer_no_reward",
+                        player.getName().getString());
+            }
+            return false;
+        }
+
+        // Resolve tier from contract NBT (normalizeTier handles legacy/unknown values)
+        String tier = BountyContractItem.normalizeTier(BountyContractItem.getTier(contractStack));
+
         // 准备奖励物品（不修改背包）
         ItemStack rewardScroll = new ItemStack(ModItems.TRADE_SCROLL, 1);
         TradeScrollItem.initialize(rewardScroll, TradeConfig.GRADE_NORMAL);
@@ -147,7 +163,6 @@ public final class BountySettleHelper {
 
         // Coin roll（只在奖励成功发放后执行）
         int required = BountyContractItem.getRequired(contractStack);
-        String tier = BountyContractItem.normalizeTier(BountyContractItem.getTier(contractStack));
         boolean coinHit = false;
 
         BountyHandler.CoinRollResult coinResult = BountyHandler.tryRollCoin(world, player, required, tier);
@@ -182,6 +197,15 @@ public final class BountySettleHelper {
 
         // consume 契约（精确移除 1 张）
         contractStack.decrement(1);
+
+        // FEATURE_CYCLE_2 post-consume silent Trust award：admission 已通过，
+        // non-accepted result 是 invariant failure，不是正常分支。
+        MerchantUnlockState.BrokerTrustMutationResult trustResult =
+                unlockState.addBrokerTrustProgress(player, TradeConfig.brokerTrustDeltaForTier(tier));
+        if (!trustResult.accepted()) {
+            LOGGER.error("[BountySettle] TRUST_POST_CONSUME_INVARIANT_FAILURE player={} tier={} requestedDelta={}",
+                    player.getName().getString(), tier, trustResult.requestedDelta());
+        }
 
         // actionbar 成功提示
         player.sendMessage(
