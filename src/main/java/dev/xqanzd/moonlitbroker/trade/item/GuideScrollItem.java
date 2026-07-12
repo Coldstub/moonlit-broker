@@ -48,7 +48,8 @@ public class GuideScrollItem extends WrittenBookItem {
                         Text.translatable("item.xqanzd_moonlit_broker.eclipse_blade"),
                         Text.translatable("item.xqanzd_moonlit_broker.oblivion_edge"),
                         Text.translatable("item.xqanzd_moonlit_broker.nmap_katana")
-                ))
+                )),
+                RawFilteredPair.of(Text.translatable("guide.xqanzd_moonlit_broker.page.12"))
         );
 
         WrittenBookContentComponent content = new WrittenBookContentComponent(
