@@ -2,6 +2,7 @@ package dev.xqanzd.moonlitbroker.trade;
 
 import dev.xqanzd.moonlitbroker.armor.item.ArmorItems;
 import dev.xqanzd.moonlitbroker.armor.transitional.TransitionalArmorItems;
+import dev.xqanzd.moonlitbroker.trade.item.BountyContractItem;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.item.Item;
 import net.minecraft.util.Rarity;
@@ -504,6 +505,23 @@ public final class TradeConfig {
     /** Common-side clamp for persisted Broker Trust progress. */
     public static int clampBrokerTrustProgress(int progress) {
         return Math.max(0, Math.min(BROKER_TRUST_PROGRESS_CAP, progress));
+    }
+
+    /**
+     * Shared contract-tier -> Trust delta mapping; the single balance owner for both
+     * formal settlement routes. Input domain = BountyContractItem.normalizeTier output;
+     * malformed/unknown values fall back to the common delta, matching contract
+     * normalization.
+     */
+    public static int brokerTrustDeltaForTier(String normalizedTier) {
+        if (normalizedTier == null) {
+            return BROKER_TRUST_DELTA_COMMON;
+        }
+        return switch (normalizedTier) {
+            case BountyContractItem.TIER_RARE -> BROKER_TRUST_DELTA_RARE;
+            case BountyContractItem.TIER_ELITE -> BROKER_TRUST_DELTA_ELITE;
+            default -> BROKER_TRUST_DELTA_COMMON;
+        };
     }
 
     /** Shared rank derivation; rank is a pure function of persisted progress. */
