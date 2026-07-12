@@ -6,6 +6,9 @@ import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.RegistryWrapper;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.sound.SoundEvents;
+import net.minecraft.text.Text;
+import net.minecraft.util.Formatting;
 import net.minecraft.world.PersistentState;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -315,7 +318,10 @@ public class MerchantUnlockState extends PersistentState {
     }
 
     /**
-     * Silent Broker Trust mutation: no message, no sound, no locale reference.
+     * Broker Trust mutation, the single feedback authority (C2-A): only a
+     * server-confirmed rank crossing emits exactly one localized Actionbar and one
+     * level-up sound from this API boundary. Ordinary progress, saturation, invalid
+     * amount, null player and cap rejection all stay silent.
      * Invalid callers or non-positive deltas do not mutate persistent state.
      * A cap-full new player reaching this method bypassed the admission gate; the
      * mutation is rejected as an invariant failure, not a normal settlement branch.
@@ -346,8 +352,17 @@ public class MerchantUnlockState extends PersistentState {
             brokerTrustByPlayer.put(playerUuid, currentProgress);
             markDirty();
         }
-        return new BrokerTrustMutationResult(
+        BrokerTrustMutationResult result = new BrokerTrustMutationResult(
             true, amount, appliedDelta, previousProgress, currentProgress, previousRank, currentRank);
+        if (result.rankChanged()) {
+            player.sendMessage(
+                Text.translatable(
+                    "message.xqanzd_moonlit_broker.broker_trust.rank_up",
+                    result.currentRank()).formatted(Formatting.GOLD),
+                true);
+            player.playSound(SoundEvents.ENTITY_PLAYER_LEVELUP, 0.7f, 1.0f);
+        }
+        return result;
     }
 
     @Override
