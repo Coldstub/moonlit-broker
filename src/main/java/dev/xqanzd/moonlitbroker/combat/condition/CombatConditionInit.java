@@ -2,6 +2,7 @@ package dev.xqanzd.moonlitbroker.combat.condition;
 
 import dev.xqanzd.moonlitbroker.combat.condition.bleeding.BleedAttributionCarrier;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +27,12 @@ public final class CombatConditionInit {
 
         // 出血 admission index 的有界逐 tick reconciliation
         ServerTickEvents.END_SERVER_TICK.register(BleedAttributionCarrier::reconcileTick);
+
+        // DP-C1(a) campaign tooling：仅开发环境注册；生产运行时注册面 = 零
+        if (FabricLoader.getInstance().isDevelopmentEnvironment()) {
+            CombatConditionDebugCommand.register();
+            LOGGER.info("[CombatCondition] Dev-only bleed debug command registered");
+        }
 
         LOGGER.info("[CombatCondition] Combat condition subsystem initialized!");
     }
