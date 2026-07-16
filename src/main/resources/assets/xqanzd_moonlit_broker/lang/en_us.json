@@ -806,5 +806,9 @@
   "actionbar.xqanzd_moonlit_broker.coin.payout_deferred": "Inventory full — coin held by the merchant",
   "actionbar.xqanzd_moonlit_broker.coin.payout_received": "Received %1$s ×%2$s from the merchant",
   "actionbar.xqanzd_moonlit_broker.bounty.settle_anomaly": "Contract settlement anomaly — submit to a merchant to complete",
-  "message.xqanzd_moonlit_broker.broker_trust.rank_up": "Broker Trust reached Rank %s"
+  "message.xqanzd_moonlit_broker.broker_trust.rank_up": "Broker Trust reached Rank %s",
+  "effect.xqanzd_moonlit_broker.bleeding": "Bleeding",
+  "death.attack.xqanzd_moonlit_broker.bleeding": "%1$s bled out",
+  "death.attack.xqanzd_moonlit_broker.bleeding.player": "%1$s bled out whilst fighting %2$s",
+  "death.attack.xqanzd_moonlit_broker.bleeding.item": "%1$s bled out whilst fighting %2$s wielding %3$s"
 }

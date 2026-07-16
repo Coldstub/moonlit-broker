@@ -801,5 +801,9 @@
   "actionbar.xqanzd_moonlit_broker.bounty.settle_anomaly": "该契约结算异常，请前往商人提交以完成结算",
   "msg.xqanzd_moonlit_broker.reclaim.reforged": "补契完成：旧太刀实例已进入沉寂（失效）状态。",
   "error.xqanzd_moonlit_broker.katana.already_owned": "\u2718 你已拥有此太刀。",
-  "message.xqanzd_moonlit_broker.broker_trust.rank_up": "掮客信任已提升至等级 %s"
+  "message.xqanzd_moonlit_broker.broker_trust.rank_up": "掮客信任已提升至等级 %s",
+  "effect.xqanzd_moonlit_broker.bleeding": "出血",
+  "death.attack.xqanzd_moonlit_broker.bleeding": "%1$s 失血过多而死",
+  "death.attack.xqanzd_moonlit_broker.bleeding.player": "%1$s 在与 %2$s 搏斗时失血过多而死",
+  "death.attack.xqanzd_moonlit_broker.bleeding.item": "%1$s 在与 %2$s（手持 %3$s）搏斗时失血过多而死"
 }
