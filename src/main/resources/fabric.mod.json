@@ -21,6 +21,7 @@
     "xqanzd_moonlit_broker.katana.mixins.json",
     "xqanzd_moonlit_broker.armor.mixins.json",
     "xqanzd_moonlit_broker.transitional.mixins.json",
+    "xqanzd_moonlit_broker.combat.mixins.json",
     {
       "config": "xqanzd_moonlit_broker.client.mixins.json",
       "environment": "client"

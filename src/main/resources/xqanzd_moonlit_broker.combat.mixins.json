@@ -1,0 +1,15 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.xqanzd.moonlitbroker.combat.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "mixins": [
+    "BleedAttributionMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "overwrites": {
+    "requireAnnotations": true
+  }
+}
