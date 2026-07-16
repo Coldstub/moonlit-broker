@@ -5,6 +5,7 @@ import dev.xqanzd.moonlitbroker.armor.ArmorBalanceValidator;
 import dev.xqanzd.moonlitbroker.armor.ArmorSpecs;
 import dev.xqanzd.moonlitbroker.armor.item.ArmorDyeSupport;
 import dev.xqanzd.moonlitbroker.armor.transitional.TransitionalArmorInit;
+import dev.xqanzd.moonlitbroker.combat.condition.CombatConditionInit;
 import dev.xqanzd.moonlitbroker.entity.spawn.MysteriousMerchantSpawner;
 import dev.xqanzd.moonlitbroker.katana.KatanaInit;
 import dev.xqanzd.moonlitbroker.screen.ModScreenHandlers;
@@ -56,6 +57,9 @@ public class Mymodtest implements ModInitializer {
         ModBlocks.register();
         ModEntities.register();
         ModScreenHandlers.register();
+
+        // 初始化 Combat Conditions 子系统
+        CombatConditionInit.register();
 
         // 初始化 Katana 子系统
         KatanaInit.init();
